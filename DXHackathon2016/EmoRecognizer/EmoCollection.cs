@@ -33,13 +33,13 @@ namespace EmoRecognizer
         public void Update(Scores x)
         {
             Emotions.Clear();
-            Emotions.Add(new EmoCollectionRecord() { Emotion = "Happiness", Value = x.Happiness });
-            Emotions.Add(new EmoCollectionRecord() { Emotion = "Anger", Value = x.Anger });
-            Emotions.Add(new EmoCollectionRecord() { Emotion = "Contempt", Value = x.Contempt });
-            Emotions.Add(new EmoCollectionRecord() { Emotion = "Disgust", Value = x.Disgust });
-            Emotions.Add(new EmoCollectionRecord() { Emotion = "Fear", Value = x.Fear, });
-            Emotions.Add(new EmoCollectionRecord() { Emotion = "Sadness", Value = x.Sadness });
-            Emotions.Add(new EmoCollectionRecord() { Emotion = "Surprise", Value = x.Surprise });
+            Emotions.Add(new EmoCollectionRecord() { Emotion = "Счастье", Value = x.Happiness });
+            Emotions.Add(new EmoCollectionRecord() { Emotion = "Гнев", Value = x.Anger });
+            Emotions.Add(new EmoCollectionRecord() { Emotion = "Презрение", Value = x.Contempt });
+            Emotions.Add(new EmoCollectionRecord() { Emotion = "Отвращение", Value = x.Disgust });
+            Emotions.Add(new EmoCollectionRecord() { Emotion = "Страх", Value = x.Fear, });
+            Emotions.Add(new EmoCollectionRecord() { Emotion = "Печаль", Value = x.Sadness });
+            Emotions.Add(new EmoCollectionRecord() { Emotion = "Удивление", Value = x.Surprise });
         }
 
         public override string ToString()

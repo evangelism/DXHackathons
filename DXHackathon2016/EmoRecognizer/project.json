@@ -3,6 +3,7 @@
     "HockeySDK.WINRT": "2.2.2",
     "Microsoft.Azure.Mobile.Client": "2.0.1",
     "Microsoft.NETCore.UniversalWindowsPlatform": "5.0.0",
+    "Microsoft.ProjectOxford.Face": "1.1.0",
     "WindowsAzure.Storage": "6.2.0"
   },
   "frameworks": {

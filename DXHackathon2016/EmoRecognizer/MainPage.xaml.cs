@@ -1,7 +1,8 @@
-﻿using Microsoft.ProjectOxford.Emotion;
+﻿using FacialRecognitionDoor.Helpers;
+using Microsoft.ProjectOxford.Emotion;
+using Microsoft.ProjectOxford.Face;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
-using Rover;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -23,6 +24,8 @@ using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Media.Imaging;
 using Windows.UI.Xaml.Navigation;
+using Microsoft.ProjectOxford.Face.Contract;
+
 
 // Документацию по шаблону элемента "Пустая страница" см. по адресу http://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 
@@ -34,14 +37,13 @@ namespace EmoRecognizer
     public sealed partial class MainPage : Page
     {
         static string OxfordAPIKey = "2cabd9f1b2014a04bc04782b3c703539";
-
+        static string OxfordAPIFaceKey = "483515193044483bb9fbf25f2c4a2035";
         MediaCapture MC;
         DispatcherTimer RecognitionTimer = new DispatcherTimer() { Interval = TimeSpan.FromSeconds(5) };
         EmotionServiceClient Oxford = new EmotionServiceClient(OxfordAPIKey);
-
+        FaceServiceClient faceServiceClient = new FaceServiceClient(OxfordAPIFaceKey);
+        private SpeechHelper speech;
         EmoCollection MyEmo = new EmoCollection();
-
-        TwoMotorsDriver Rover = new TwoMotorsDriver(new Motor(27, 22), new Motor(5, 6));
 
         CloudBlobContainer ImagesDir;
 
@@ -57,6 +59,16 @@ namespace EmoRecognizer
 
             RecognitionTimer.Tick += GetEmotions;
             RecognitionTimer.Start();
+        }
+
+        private void speechMediaElement_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (speech == null)
+            {
+                speech = new SpeechHelper(speechMediaElement);
+
+            }
+
         }
 
         private async Task<CloudBlobContainer> GetImagesBlobContainer()
@@ -100,12 +112,11 @@ namespace EmoRecognizer
         private async void ProxyDetector_OnFaceDetected(object sender, FaceDetectionEventArgs ea)
         {
             // Debug.WriteLine(ea.X);
-            if (DateTime.Now>RecoBlock)
+            if (DateTime.Now > RecoBlock)
             {
                 RecoBlock = DateTime.Now.AddSeconds(5);
                 var x = ea.X;
-                if (x < 200) await Rover.TurnRightAsync(150);
-                if (x > 400) await Rover.TurnLeftAsync(150);
+
             }
         }
 
@@ -113,80 +124,82 @@ namespace EmoRecognizer
 
         async void GetEmotions(object sender, object e)
         {
-            // dt.Stop();
+
             var ms = new MemoryStream();
 
-            //FAKE IMAGEjjk
-            //BitmapImage bitmapImage = new BitmapImage();
-            ////img.Width = bitmapImage.DecodePixelWidth = 280;
-            Uri uri = new Uri("ms-appx:///Assets/WIN_20160205_23_45_55_Pro.jpg");
-            //bitmapImage.UriSource = uri;
-            //img.Source = bitmapImage;
-
-            //StorageFile storageFile = await Windows.Storage.StorageFile.GetFileFromApplicationUriAsync(uri);
-
-            //var randomAccessStream = await storageFile.OpenReadAsync();
-            //Stream stream = randomAccessStream.AsStreamForRead();
-
-            //await stream.CopyToAsync(ms);
-            ////END OF FAKE IMAGE
-
-            //Stream stream = randomAccessStream.AsStreamForRead(); 
-            try
-            {
-                int i = 5;
-                int j = i / 0;
-            }
-            catch
-            {
-            }
-
-            try
-            {
-                throw new Exception("demo");
-            }
-            catch
-            {
-
-            }
-            
-            await MC.CapturePhotoToStreamAsync(ImageEncodingProperties.CreateJpeg(), ms.AsRandomAccessStream());
+            // Uri uri = new Uri("ms-appx:///Assets/WIN_20160205_23_45_55_Pro.jpg");
+            StorageFile file = await ApplicationData.Current.LocalFolder.CreateFileAsync(
+        "TestPhoto.jpg",
+        CreationCollisionOption.GenerateUniqueName);
+            await MC.CapturePhotoToStorageFileAsync(ImageEncodingProperties.CreateJpeg(), file);
+            //.CapturePhotoToStreamAsync(ImageEncodingProperties.CreateJpeg(), ms.AsRandomAccessStream());
 
             ms.Position = 0L;
             var ms1 = new MemoryStream();
             await ms.CopyToAsync(ms1);
             ms.Position = 0L;
-            var Emo = await Oxford.RecognizeAsync(ms);
-            if (Emo!=null && Emo.Length>0)
+            var ms2 = new MemoryStream();
+
+            var randomAccessStream = await file.OpenReadAsync();
+            Stream stream = randomAccessStream.AsStreamForRead();
+
+            Microsoft.ProjectOxford.Face.Contract.Face[] faces = await faceServiceClient.DetectAsync(stream, false, true, new FaceAttributeType[] { FaceAttributeType.Gender, FaceAttributeType.Age, FaceAttributeType.FacialHair, FaceAttributeType.Smile, FaceAttributeType.Glasses });
+            var randomAccessStream2 = await file.OpenReadAsync();
+            Stream stream2 = randomAccessStream2.AsStreamForRead();
+            var Emo = await Oxford.RecognizeAsync(stream2);
+
+            if (Emo != null && Emo.Length > 0)
             {
+
                 var Face = Emo[0];
                 var s = Face.Scores;
-
-                if (s.Surprise > 0.8)
+                if (faces[0].FaceAttributes.Gender.Equals("male"))
                 {
-                    if (!SentSurprize)
-                    {
-                        ms1.Position = 0L;
-                        var u = await SendPicture(ms1);
-                        await RoverServices.InsertSF(u, s.Surprise);
-                        SentSurprize = true;
-                    }
+                    faces[0].FaceAttributes.Gender = "мужчина";
                 }
-                else SentSurprize = false;
-                // res.Text = $"Happiness: {s.Happiness,6:N4}\nAnger: {s.Anger,6:N4}\nContempt: {s.Contempt,6:N4}\nDisgust: {s.Disgust,6:N4}\nFear: {s.Fear,6:N4}\nSadness: {s.Sadness,6:N4}\nSurprise: {s.Surprise,6:N4}";
-                // Canvas.SetLeft(res, Face.FaceRectangle.Left+Face.FaceRectangle.Width/2);
-                // Canvas.SetTop(res, Face.FaceRectangle.Top+Face.FaceRectangle.Height/2);
+                else
+                {
+                    faces[0].FaceAttributes.Gender = "женщина";
+                }
+                
+                Speak(faces);
+                //Wait();
+                //if (s.Surprise > 0.8)
+                //{
+                //    if (!SentSurprize)
+                //    {
+                //        ms1.Position = 0L;
+                //        var u = await SendPicture(ms1);
+                //        await RoverServices.InsertSF(u, s.Surprise);
+                //        SentSurprize = true;
+                //    }
+                //}
+
+
                 var T = new Thickness();
                 T.Left = Face.FaceRectangle.Left;
-                T.Top=Face.FaceRectangle.Top;
-                // res.Margin = T;
-                // EmoControl.Margin = T;
+                T.Top = Face.FaceRectangle.Top;
                 MyEmo.Update(Face.Scores);
-                await RoverServices.Insert(Face.Scores);
+
+                //await RoverServices.Insert(Face.Scores);
             }
         }
 
+        private async void Speak(Face[] f)
+        {
+            await speech.Read("Здравствуйте, вам" + f[0].FaceAttributes.Age.ToString().Split(',')[0] + "и вы" + f[0].FaceAttributes.Gender + ".");
+            //Wait();
+        }
 
+        private void Wait()
+        {
+            Task.Delay(TimeSpan.FromSeconds(10));
+        }
+
+        private void textBlock_SelectionChanged(object sender, RoutedEventArgs e)
+        {
+
+        }
     }
 
 }
